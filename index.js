@@ -49,6 +49,7 @@ app.post('/register', async(req, res) => {
 
 // This route handles user login by authenticating the user's email and password
 // and generates a JSON Web Token (JWT) for subsequent authentication of protected routes
+// login route
 app.post('/login', async(req, res) => {
   const { email, password } = req.body;
 
@@ -68,15 +69,50 @@ app.post('/login', async(req, res) => {
     return res.status(401).send('Invalid email or password');
   }
 
-  // If the email and password are correct, create a JWT token
-  const token = jwt.sign({ id: user._id }, 'mysecretkey', { expiresIn: '1h' });
+ // If the email and password are correct, create a JWT token
+  // Secrete Key saved in .env file
+  const mysecretkey = process.env.SECRET_CODE;
+
+  // Payload to generate JWT
+  const payload = {
+    fullName: user.fullname,
+    email: user.email,
+    password: user.password,
+  };
+  // Create a jsonwebtoken
+  const token = jwt.sign(payload, mysecretkey, { expiresIn: '5d' });
 
   // Send the token back to the client
   res.status(200).json({
-    msg: "User has been created",
+    msg: "User is logged in",
     token: token
   });
 });
+
+app.get('/protected', async(req, res) => {
+  const token = req.headers.authorization.split(' ')[1]; // Get token from Authorization header
+  const mysecretkey = process.env.SECRET_CODE;
+  try {
+    // Verify token and decode payload
+    const decoded = jwt.verify(token, mysecretkey);
+
+    // Get user email from payload
+    const userEmail = decoded.email;
+
+    // Find user by email in the database
+    const user = await userModel.findOne({ email: userEmail });
+
+    if (user) {
+      res.json({ message: `Welcome ${user.fullname}! This is a protected route.` });
+    } else {
+      res.status(401).json({ error: 'Invalid token' });
+    }
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
+
 
 
 
